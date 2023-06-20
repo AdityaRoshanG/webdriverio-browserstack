@@ -1,42 +1,87 @@
-name: 'BrowserStack Test'
-on: [push, pull_request]
-jobs:
-  ubuntu-job:
-    name: 'BrowserStack Test on Ubuntu'
-    runs-on: ubuntu-latest  # Can be self-hosted runner also
-    steps:
+name: Kayo web tests
+on:
+  push:
+    branches: 
+    - master
+    - feature/**
+  pull_request:
+    branches: 
+    - master
+    - feature
+  workflow_dispatch:
+    inputs:
+      browser:
+        type: choice
+        description: 'Choose the browser to run with'
+        required: false
+        default: 'chrome'
+        options:
+        - all
+        - chrome
+        - firefox
+        - edge
+        - safari
+      testEnv:
+        type: choice
+        description: 'Choose environment to run the test for'
+        required: false
+        options:
+        - staging
+        - production
+      testGroup:
+        type: choice
+        options:
+        - all
+        - regression
+        - landingPage
+        - signup
+        - offers
+        - signin
+        description: 'Choose which group of tests to run'
+        required: true
+        default: 'all'
 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [19.9.0]
+    
+    steps:
       - name: 'BrowserStack Env Setup'  # Invokes the setup-env action
         uses: browserstack/github-actions/setup-env@master
         with:
           username:  ${{ secrets.BROWSERSTACK_USERNAME }}
           access-key: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-          build-name: 'Github Actions wdio test'
-          project-name: 'wdio github actions'
+          build-name: 'kayo web tests'
+          project-name: 'Streamotion Kayo Web Tests'
 
       - name: 'BrowserStack Local Tunnel Setup'  # Invokes the setup-local action
         uses: browserstack/github-actions/setup-local@master
         with:
           local-testing: start
-          local-identifier: random
+          #local-identifier: random
 
-# The next 3 steps are for building the web application to be tested and starting the web server on the runner environment
+      - name: checkout
+        uses: actions/checkout@v3
 
-      - name: 'Checkout the repository'
-        uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
 
-      - name: 'Building web application to be tested'
-        run: npm install
+      - name: Install & Build
+        run: |
+          npm install
 
-      - name: 'Running test on BrowserStack'  # Invokes the actual test script that would run on BrowserStack browsers
-        run: npm run test  # See sample test script above
+      - name: Run Tests
+        run: |
+          npm run test
 
       - name: 'BrowserStackLocal Stop'  # Terminating the BrowserStackLocal tunnel connection
         uses: browserstack/github-actions/setup-local@master
         with:
           local-testing: stop
-
-
-
-
-
+    
